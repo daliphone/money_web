@@ -6,15 +6,21 @@ from docx import Document
 from io import BytesIO
 
 # --- 頁面配置 ---
-st.set_page_config(page_title="馬尼通訊 行銷排程系統", page_icon="📱", layout="wide")
+st.set_page_config(page_title="馬尼通訊 行銷排程系統", page_icon="🐎", layout="wide")
 
-# 強制馬尼品牌色風格
+# 強制馬尼品牌色風格 (加入馬年慶金紅配色微調)
 st.markdown("""
     <style>
     .main { background-color: #0B1C3F; }
     h1, h2, h3 { color: #FFD700 !important; }
     .stButton>button { background-color: #F39C12; color: white; border-radius: 8px; font-weight: bold; }
     .stDownloadButton>button { background-color: #27AE60; color: white; border-radius: 8px; font-weight: bold; }
+    /* 馬年慶特別按鈕樣式 */
+    .event-btn > div > button {
+        background-color: #D32F2F !important;
+        border: 2px solid #FFD700 !important;
+        color: #FFD700 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,6 +35,21 @@ if 'modules' not in st.session_state:
 
 # --- 側邊欄：8 組快速模組管理 ---
 with st.sidebar:
+    st.header("🧧 活動快捷載入")
+    # --- 新增：馬年慶預設邏輯按鈕 ---
+    st.markdown('<div class="event-btn">', unsafe_allow_html=True)
+    if st.button("🐎 載入【馬年慶：百倍奉還】"):
+        st.session_state.cur_name = "馬年慶：百倍奉還活動"
+        st.session_state.cur_plat = "公司活動(各社群平台)"
+        st.session_state.cur_s = "01/29" # 2026 農曆初一
+        st.session_state.cur_e = "02/12"
+        st.session_state.cur_note = "1. 消費滿額抽獎，最高回饋100倍點數。\n2. 全台門市同步開啟馬年限定裝飾。"
+        st.session_state.cur_spec = "1. 需登入馬尼APP會員。\n2. 單筆交易限抽一次。\n3. 獎勵將於活動結束後7日內派發。"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.divider()
+    
     st.header("🛠️ 快速模組設定")
     mod_idx = st.selectbox("選擇編輯/載入模組", range(8), format_func=lambda x: st.session_state.modules[x]["name"])
     
@@ -48,6 +69,7 @@ with st.container():
     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
     m_data = st.session_state.modules[mod_idx]
 
+    # 使用 session_state 做為 value 來源，確保載入功能生效
     with col1:
         name = st.text_input("活動名稱", value=m_data["name"], key="cur_name")
     with col2:
@@ -92,8 +114,9 @@ if st.session_state.activity_list:
         try:
             m1, d1 = map(int, act['開始'].split('/'))
             m2, d2 = map(int, act['結束'].split('/'))
-            e.add('dtstart', datetime(2025, m1, d1))
-            e.add('dtend', datetime(2025, m2, d2) + timedelta(days=1))
+            # 假設年份為 2026 馬年
+            e.add('dtstart', datetime(2026, m1, d1))
+            e.add('dtend', datetime(2026, m2, d2) + timedelta(days=1))
             cal.add_component(e)
         except: continue
     
