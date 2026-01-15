@@ -7,179 +7,145 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from io import BytesIO
 import os
+import google.generativeai as genai
 
-# --- 1. 頁面配置 ---
-st.set_page_config(page_title="馬尼通訊 企劃提案系統 v14.3.4", page_icon="🐎", layout="wide")
+# --- 1. 頁面配置與品牌色彩 ---
+st.set_page_config(page_title="馬尼通訊 模組化企劃系統 v14.3.5", page_icon="🐎", layout="wide")
 
-# CSS 強制美化：左欄背景馬尼藍(#003f7e)，標題馬尼橘(#ef8200)
 st.markdown("""
     <style>
     .main { background-color: #F0F2F6; color: #1E2D4A; }
-    
-    /* 修正引導文字顏色 */
     textarea::placeholder { color: #888888 !important; opacity: 1 !important; }
     
-    /* 左側側邊欄視覺 */
+    /* 左側側邊欄視覺：馬尼藍(#003f7e)與馬尼橘(#ef8200) */
     [data-testid="stSidebar"] { background-color: #003f7e !important; border-right: 2px solid #ef8200; }
     [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #ef8200 !important; font-weight: bold; }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label { color: #FFFFFF !important; }
-    
-    /* 下拉選單美化 */
     div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #003f7e !important; }
     
-    /* 章節標題強化 (明顯標題感) */
+    /* 章節標題強化 */
     .section-header { 
-        font-size: 20px !important; 
-        color: #003f7e !important; 
-        font-weight: 800 !important; 
-        margin-top: 10px !important;
-        margin-bottom: 5px !important;
-        border-left: 5px solid #ef8200;
-        padding-left: 10px;
+        font-size: 20px !important; color: #003f7e !important; font-weight: 800 !important; 
+        margin-top: 20px !important; margin-bottom: 5px !important;
+        border-left: 5px solid #ef8200; padding-left: 10px;
     }
     
-    /* AI 按鈕樣式：字體縮小且緊湊 */
+    /* AI 按鈕精簡化 */
     .ai-btn-small>div>button { 
-        background-color: #6200EA !important; 
-        color: white !important; 
-        border: 1px solid #ef8200 !important;
-        font-size: 13px !important;
-        padding: 2px 10px !important;
-        height: auto !important;
-        min-height: 30px !important;
+        background-color: #6200EA !important; color: white !important; 
+        border: 1px solid #ef8200 !important; font-size: 12px !important;
+        padding: 2px 8px !important; height: auto !important;
     }
-    
-    /* 建議按鈕字體縮小 */
-    .stExpander label p { font-size: 13px !important; color: #666 !important; }
-    .stExpander div p { font-size: 13px !important; }
-    
-    .stButton>button { border-radius: 6px; font-weight: bold; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 分章節 AI 優化邏輯 ---
-def section_ai_logic(field_id, text):
-    if not text or len(text) < 2: return text
-    if field_id == "p_purpose":
-        return f"【營運目的優化】本活動核心在於{text}。透過精準時機切入與誘因設計，旨在提升客流並強化品牌高性價比形象。"
-    elif field_id == "p_core":
-        return f"【核心內容優化】本活動名稱為「{st.session_state.p_name}」，鎖定目標族群需求，建立市場競爭優勢。"
-    elif field_id == "p_schedule":
-        return f"{text}\n\n💡 AI 執行建議：確保宣傳與銷售期銜接，文宣佈置需提前完成。"
-    elif field_id == "p_prizes":
-        return f"{text}\n\n💡 AI 配置建議：大獎造勢，小額購物金驅動官網二次轉化。"
-    elif field_id == "p_sop":
-        return f"{text}\n\n💡 AI SOP 建議：強調「卸下武裝」話術，先聊需求，落實限量管理。"
-    elif field_id == "p_marketing":
-        return f"🚀【整合行銷】{text}。整合區域廣告與 LINE 官方帳號通知。"
-    elif field_id == "p_risk":
-        return f"{text}\n\n💡 AI 風險提示：注意稅務申報門檻與序號防偽核對。"
-    elif field_id == "p_effect":
-        return f"【預期效益優化】{text}。累積潛在客戶名單並提升品牌活躍度。"
-    return text
+# --- 2. 安全 API 串接與 AI 邏輯 ---
+# 支援 GitHub 部署與本地環境安全讀取
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-# --- 3. 初始化數據 ---
+def call_ai_optimize(field_id, user_text):
+    if not api_key or not user_text:
+        return f"【模擬優化】{user_text} (請設定 API 金鑰以啟用真實 AI)"
+    
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash') # 使用最新的 Flash 模型提升速度
+    
+    # 針對章節屬性配置 Prompt
+    prompts = {
+        "p_purpose": f"請以營運邏輯優化以下內容，強調解決痛點(如降低購買門檻)及數據增長，並加入去化商品之目標：{user_text}",
+        "p_core": f"請優化此核心內容，強調產品唯一賣點與對象契合度：{user_text}",
+        "p_sop": f"請針對此門市 SOP 加入「卸下武裝」話術建議與執行細節：{user_text}",
+        "p_effect": f"請將以下成效轉化為具備 O2O 轉換與 UGC 口碑累積的效益描述：{user_text}"
+    }
+    prompt = prompts.get(field_id, f"請潤色並專業化以下行銷企劃內容：{user_text}")
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"連線錯誤：{str(e)}"
+
+# --- 3. 初始化數據與範本 ---
 FIELDS = ["p_name", "p_proposer", "p_purpose", "p_core", "p_schedule", "p_prizes", "p_sop", "p_marketing", "p_risk", "p_effect"]
 for field in FIELDS:
     if field not in st.session_state: st.session_state[field] = ""
 
-if 'templates_store' not in st.session_state:
-    st.session_state.templates_store = {
-        "🐎 馬年慶：百倍奉還 (官方)": {
-            "p_name": "2026 馬尼通訊「馬年慶：百倍奉還」企劃案",
-            "p_purpose": "迎接馬年，透過 $100 元低門檻吸引新舊客戶進店，增加官網流量。",
-            "p_core": "對象：全門市消費者；核心產品：$100 新年禮包。",
-            "p_schedule": "115/01/12 宣傳、01/19 販售。",
-            "p_prizes": "PS5 | 1名 | 售價 $100 包裝。",
-            "p_sop": "確認限購3包、引導加官方 LINE。",
-            "p_marketing": "FB/IG 限動倒數、門市完售海報。",
-            "p_risk": "稅金申報規範、序號防偽處理。",
-            "p_effect": "預期 2,000+ 人流、官網互動提升。"
-        }
-    }
-
-# --- 4. 側邊欄 ---
+# --- 4. 側邊欄：範本管理 ---
 with st.sidebar:
-    st.header("📋 企劃範本庫")
-    selected_tpl = st.selectbox("選擇既有範本", options=list(st.session_state.templates_store.keys()))
+    st.header("📋 企劃範本管理")
+    # 預設範本
+    tpl_options = ["請選擇範本", "🐎 馬年慶：百倍奉還", "⌚ 7日智慧手錶試戴"]
+    selected_tpl = st.selectbox("載入預設模組", tpl_options)
     
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📥 載入範本"):
-            for k, v in st.session_state.templates_store[selected_tpl].items(): st.session_state[k] = v
-            st.rerun()
-    with c2:
-        if st.button("💾 儲存為範本"):
-            name_snip = st.session_state.p_name[:5] if st.session_state.p_name else datetime.now().strftime('%H%M')
-            st.session_state.templates_store[f"💾 自訂：{name_snip}..."] = {f: st.session_state[f] for f in FIELDS}
-            st.success("已存入庫")
+    if st.button("📥 確認載入"):
+        if "馬年慶" in selected_tpl:
+            st.session_state.p_name = "2026「馬年慶：百倍奉還」"
+            st.session_state.p_purpose = "解決連假後人流痛點，透過 $100 門檻去化高壓新年禮包庫存。"
+            st.session_state.p_sop = "話術：先聊新年願望。SOP：限購3包、引導加官方LINE。"
+        elif "試戴" in selected_tpl:
+            st.session_state.p_name = "「先體驗再入手」7日試戴專案"
+            st.session_state.p_purpose = "降低高單價智慧手錶購買門檻，解決消費者不適配的擔憂。"
+            st.session_state.p_sop = "話術：建議先不要買，戴過才知道。SOP：支付押金、簽署同意書。"
+        st.rerun()
 
     st.divider()
-    if st.button("🗑️ 清空編輯區"):
+    if st.button("🗑️ 清空所有草稿"):
         for f in FIELDS: st.session_state[f] = ""
         st.rerun()
 
-    st.markdown("<br>"*5, unsafe_allow_html=True)
-    with st.expander("🛠️ 系統資訊 v14.3.4", expanded=False):
-        st.caption("修正：標題視覺強化、按鈕縮小優化\n馬尼門活動企劃系統 © 2025 Money MKT")
-
 # --- 5. 主要編輯區 ---
-st.title("📱 馬尼通訊 行銷企劃提案系統")
+st.title("📱 馬尼通訊 模組化企劃提案系統 v14.3.5")
 
 t1, t2, t3 = st.columns([2, 1, 1])
-with t1: st.text_input("一、 活動名稱", key="p_name", placeholder="例如: 馬年慶：百倍奉還")
+with t1: st.text_input("一、 活動名稱", key="p_name", placeholder="例如: 某商品銷售目的或是去化高壓商品專案")
 with t2: st.text_input("提案人", key="p_proposer", placeholder="行銷部 / 您的姓名")
 with t3: st.date_input("提案日期", value=datetime.now(), key="p_date")
 
 st.divider()
 
-# 章節配置
+# 模組化章節配置
 sections = [
-    ("p_purpose", "一、 活動時機與目的", "營運目的邏輯建議", "解決連假後人流痛點。", "請輸入活動背景與目的..."),
-    ("p_core", "二、 活動核心內容", "賣點配置建議", "產品具備衝動購買力($100)。", "請輸入執行單位、主要商品賣點..."),
-    ("p_schedule", "三、 活動時程安排", "執行重點建議", "宣傳期需於除夕前完成。", "115/01/12: 宣傳啟動..."),
-    ("p_prizes", "四、 贈品結構與預算", "配置用意建議", "PS5 話題 + 購物金轉化。", "品項 | 數量 | 備註..."),
-    ("p_sop", "五、 門市執行 SOP", "執行注意事項", "先卸下武裝不推產品。", "請輸入銷售環節、限量管理與話術..."),
-    ("p_marketing", "六、 行銷流程與策略", "建議管道與潤稿", "社群分享好運抽購物金。", "請輸入宣傳管道與標語策略..."),
-    ("p_risk", "七、 風險管理與注意事項", "規範與注意建議", "務必收齊身分證影本報稅。", "請輸入稅務、防偽與退場機制..."),
-    ("p_effect", "八、 預估成效", "效益面建議", "重點指標：官網註冊數提升。", "預期帶動的人流量或轉化比例...")
+    ("p_purpose", "一、 活動時機與目的", "營運目的邏輯", "解決消費痛點、數據增長、增加目標商品銷售或去化高壓商品 。", "請輸入背景，例如：欲去化特定庫存或解決價格門檻..."),
+    ("p_core", "二、 活動核心內容", "賣點配置建議", "「低門檻、零風險」誘因，將銷售轉為體驗 [cite: 3, 131]。", "請定義對象、執行單位與唯一賣點..."),
+    ("p_schedule", "三、 活動時程安排", "執行重點建議", "確保宣傳期與銷售期銜接，文宣提前佈置 [cite: 13, 178]。", "格式：1/12 宣傳、1/19 銷售..."),
+    ("p_prizes", "四、 贈品結構與預算", "配置用意建議", "大獎造話題，小獎/優惠券驅動二次回流 [cite: 41, 55]。", "品項 | 數量 | 預算..."),
+    ("p_sop", "五、 門市執行 SOP", "心理戰話術建議", "卸下武裝：「建議不要直接買」，先戴再決定 。", "請輸入起手式、引導路徑與銷售禁語..."),
+    ("p_marketing", "六、 行銷宣傳策略", "建議管道與潤稿", "累積真實 UGC 心得作為後續素材 [cite: 7, 46]。", "請輸入宣傳管道與社群分享任務..."),
+    ("p_risk", "七、 風險管理與規範", "規範與注意建議", "明確扣款標準（如受損、無法開機）與稅法規範 [cite: 74, 111]。", "請輸入損壞界定、退場機制..."),
+    ("p_effect", "八、 預估成效", "效益面建議", "重點指標：O2O 轉換率、潛在名單累積 [cite: 80, 83]。", "預期帶動人流、成交筆數、問卷回流量...")
 ]
 
 col_a, col_b = st.columns(2)
 for i, (fid, title, tip_title, tip_content, ph_text) in enumerate(sections):
     target_col = col_a if i < 4 else col_b
     with target_col:
-        # 1. 章節標題 (強化版標題感)
         st.markdown(f'<p class="section-header">{title}</p>', unsafe_allow_html=True)
-        
-        # 2. AI 按鈕 (縮小並置於標題與輸入框之間)
-        st.markdown('<div class="ai-btn-small">', unsafe_allow_html=True)
-        if st.button(f"🪄 AI 優化 {title[:4]}...", key=f"btn_{fid}"):
-            st.session_state[fid] = section_ai_logic(fid, st.session_state[fid])
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 3. 輸入框 (含引導文)
-        st.text_area("", key=fid, height=120, placeholder=ph_text, label_visibility="collapsed")
-        
-        # 4. 建議區 (縮小感)
-        with st.expander(f"💡 查看建議", expanded=False):
-            st.caption(f"**{tip_title}:** {tip_content}")
-        st.write("")
+        # 輸入框
+        st.text_area("", key=fid, height=140, placeholder=ph_text, label_visibility="collapsed")
+        # 輔助工具區
+        c_ai, c_tip = st.columns([1, 1])
+        with c_ai:
+            st.markdown('<div class="ai-btn-small">', unsafe_allow_html=True)
+            if st.button(f"🪄 AI 優化此模組", key=f"btn_{fid}"):
+                st.session_state[fid] = call_ai_optimize(fid, st.session_state[fid])
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with c_tip:
+            with st.expander("💡 邏輯參考"):
+                st.caption(f"**{tip_title}:**\n{tip_content}")
 
-# --- 6. Word 下載 ---
-def generate_word():
+# --- 6. Word 產出 ---
+def generate_pro_word():
     doc = Document()
     doc.add_heading('行銷企劃執行提案書', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_heading(st.session_state.p_name if st.session_state.p_name else "未命名活動", level=1)
     for fid, title, _, _, _ in sections:
         doc.add_heading(title, level=2)
-        doc.add_paragraph(st.session_state[fid] if st.session_state[fid] else "（未填寫）")
-    word_io = BytesIO(); doc.save(word_io)
-    return word_io.getvalue()
+        doc.add_paragraph(st.session_state[fid] if st.session_state[fid] else "（未填寫內容）")
+    word_io = BytesIO(); doc.save(word_io); return word_io.getvalue()
 
 st.divider()
 if st.session_state.p_name:
     if st.button("✅ 完成企劃並產生文檔"):
-        data = generate_word()
-        st.download_button(label=f"📥 下載企劃書", data=data, file_name=f"MoneyMKT_{st.session_state.p_name}.docx")
+        doc_data = generate_pro_word()
+        st.download_button(label="📥 下載模組化企劃書", data=doc_data, file_name=f"MoneyMKT_{st.session_state.p_name}.docx")
