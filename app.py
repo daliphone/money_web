@@ -3,16 +3,14 @@ import pandas as pd
 from datetime import datetime
 from docx import Document
 from io import BytesIO
-import os
 
-# --- 1. 頁面配置與 UI ---
-st.set_page_config(page_title="馬尼通訊 營銷發想系統 v14.4.3", page_icon="🐎", layout="centered")
+# --- 1. 頁面配置與 UI (維持清新視覺) ---
+st.set_page_config(page_title="馬尼通訊 戰略發想系統 v14.6.0", page_icon="🐎", layout="centered")
 
 st.markdown("""
     <style>
     .main { background-color: #F8FAFC; color: #1E293B; }
     [data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; }
-    
     .section-header { 
         font-size: 20px !important; color: #003f7e !important; font-weight: 700 !important; 
         margin-top: 35px !important; margin-bottom: 12px !important;
@@ -22,135 +20,89 @@ st.markdown("""
         content: ""; display: inline-block; width: 5px; height: 24px; 
         background-color: #ef8200; margin-right: 12px; border-radius: 2px;
     }
-    
-    /* AI 按鈕精緻化 */
-    .stButton>button { 
-        width: 100% !important; 
-        border-radius: 8px !important;
-        font-weight: bold !important;
-    }
     .ai-btn-small>div>button { 
-        background-color: #F5F3FF !important; color: #6D28D9 !important; 
-        border: 1px solid #DDD6FE !important; font-size: 13px !important;
+        background-color: #6D28D9 !important; color: white !important; 
+        font-weight: 800 !important; border-radius: 8px !important;
+        height: 42px !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     }
-    
-    /* 摺疊區塊樣式微調 */
-    .stExpander { border: 1px solid #E2E8F0 !important; border-radius: 8px !important; background-color: white !important; }
-    
-    textarea::placeholder { color: #94A3B8 !important; font-style: italic; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 初始化 Session State ---
+# --- 2. 戰略融合配置 ---
 MODULES = [
-    ("step1_goal", "第一步：增長目標區（確定為何而戰）", "活動類型：流量型/轉化型/去化型。核心 KPI：預計售出數、毛利額、會員增長數。"),
-    ("step2_bait", "第二步：誘餌設計（確定如何引流）", "心理帳戶槓桿：$100能換>$500價值？大獎勾子：如何營造夢幻百倍價值感？"),
-    ("step3_path", "第三步：轉化路徑 (Path Optimization)", "破冰第一句話？二訪機制（下次領的贈品）？加購埋伏（推銷哪類高庫存商品）？"),
-    ("step4_inventory", "第四步：庫存動態策略 (Inventory Strategy)", "主推庫存商品清單？弱勢店加碼方案（額外的即時誘因）？"),
-    ("step5_headline", "第五步：溝通標題（確定宣傳力道）", "霸氣型標題（大獎價值）、親民型標題（低門檻）、社群短文案。"),
-    ("step6_metrics", "第六步：資源預算與成效（漏斗化指標）", "人力配置、物資、漏斗轉換預估(進店>參與>成交)、數據資產(LINE好友)、質化指標。")
+    ("p_purpose", "一、 活動時機與目的", "【戰略目的】去化高壓商品/增加數據資產。AI 會質疑你的目標是否夠具侵略性。"),
+    ("p_core", "二、 活動核心內容", "【百倍誘餌】$100換>$500價值？AI 會挑戰你的誘餌吸引力。"),
+    ("p_schedule", "三、 活動時程安排", "【執行節奏】含弱勢店面加碼啟動時機。"),
+    ("p_prizes", "四、 贈品結構與預算", "【價值槓桿】AI 會提供沒想過的獎項配置（如：無形服務、專屬權利）。"),
+    ("p_sop", "五、 門市執行流程 (SOP)", "【心理攻防】破冰第一句話、加購埋伏。AI 會提供反直覺的話術。"),
+    ("p_marketing", "六、 行銷流程與策略", "【病毒傳播】霸氣/親民標題。AI 會生成讓顧客忍不住拍照分享的視覺點。"),
+    ("p_risk", "七、 風險管理與注意事項", "【資產保護】庫存動態策略與退場機制。"),
+    ("p_effect", "八、 預估成效", "【數據漏斗】進店>參與>成交。AI 會檢核數據邏輯是否嚴謹。")
 ]
 
 FIELDS = [m[0] for m in MODULES] + ["p_name", "p_proposer", "p_date"]
 
-DEFAULT_TIPS = {
-    "step1_goal": "核心邏輯：若是為了去化，KPI 應設定為『庫存周轉率』而非單純業績。",
-    "step2_bait": "實戰建議：利用『紅包感』降低支付痛苦，提升參與率。",
-    "step3_path": "破冰話術：『這張抽獎券是送您的，要不要試試手氣？』",
-    "step6_metrics": "成效檢核：務必包含『數據資產累積』，例如蒐集到的問卷數量。"
-}
-
-# 修復初始化 logic_state 錯誤
-if 'logic_state' not in st.session_state: 
-    st.session_state.logic_state = {fid: guide for fid, _, guide in MODULES}
-if 'tips_state' not in st.session_state: 
-    st.session_state.tips_state = DEFAULT_TIPS.copy()
-if 'templates_store' not in st.session_state: 
-    st.session_state.templates_store = {"請選擇範本": {f: "" for f in FIELDS}}
+if 'logic_state' not in st.session_state: st.session_state.logic_state = {fid: guide for fid, _, guide in MODULES}
+if 'templates_store' not in st.session_state: st.session_state.templates_store = {"馬尼百倍奉還範本": {f: "" for f in FIELDS}}
 
 for f in FIELDS:
     if f not in st.session_state:
         if f == 'p_date': st.session_state[f] = datetime.now()
         else: st.session_state[f] = ""
 
-# --- 3. 側邊欄 ---
+# --- 3. 側邊欄與版本管理 ---
 with st.sidebar:
-    st.header("📋 企劃管理")
-    selected_tpl = st.selectbox("選擇既有範本", options=list(st.session_state.templates_store.keys()))
+    st.header("📋 戰略管理中心")
+    selected_tpl = st.selectbox("載入企劃範本", options=list(st.session_state.templates_store.keys()))
+    if st.button("📥 載入並重置"):
+        for k, v in st.session_state.templates_store[selected_tpl].items():
+            if k in st.session_state: st.session_state[k] = v
+        st.rerun()
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📥 載入範本"):
-            data = st.session_state.templates_store[selected_tpl]
-            for k, v in data.items():
-                if k in st.session_state: st.session_state[k] = v
-            st.rerun()
-    with col2:
-        if st.button("💾 儲存範本"):
-            if st.session_state.p_name:
-                st.session_state.templates_store[f"💾 {st.session_state.p_name[:10]}"] = {f: st.session_state[f] for f in FIELDS}
-                st.success("儲存成功")
-                st.rerun()
-
-    st.markdown("<br>"*15, unsafe_allow_html=True)
-    with st.expander("ℹ️ 系統版本資訊", expanded=False):
-        st.caption("v14.4.3: 修復語法錯誤與對齊優化")
-        edit_mode = st.toggle("🔓 開啟引導詞編輯模式", value=False)
-        st.write("---")
-        st.caption("v14.4.1: 六步發想與 AI 成效檢核")
+    st.divider()
+    with st.expander("ℹ️ 系統版本資訊"):
+        st.caption("v14.6.0: 雙重戰略引擎 (侵略性+創意)")
+        edit_mode = st.toggle("🔓 編輯引導邏輯", value=False)
 
 # --- 4. 主要編輯區 ---
-st.title("📱 馬尼通訊 營銷發想系統 v14.4.3")
+st.title("📱 馬尼通訊：雙重戰略發想系統")
 
-st.markdown('<p class="section-header">基本提案資訊</p>', unsafe_allow_html=True)
 b1, b2, b3 = st.columns([2, 1, 1])
-with b1: st.text_input("活動名稱", key="p_name", placeholder="例如：2026馬年慶百倍奉還")
+with b1: st.text_input("活動名稱", key="p_name")
 with b2: st.text_input("提案人", key="p_proposer")
 with b3: st.date_input("提案日期", key="p_date")
 
 st.divider()
 
-# 直列渲染與水平對齊修復
 for fid, title, guide in MODULES:
     st.markdown(f'<p class="section-header">{title}</p>', unsafe_allow_html=True)
-    
     if edit_mode:
-        st.session_state.logic_state[fid] = st.text_input(f"修改「{title}」提示詞", value=st.session_state.logic_state[fid], key=f"logic_edit_{fid}")
+        st.session_state.logic_state[fid] = st.text_input(f"編輯邏輯", value=st.session_state.logic_state[fid], key=f"le_{fid}")
     
     st.text_area("", key=fid, height=160, placeholder=st.session_state.logic_state[fid], label_visibility="collapsed")
     
-    # 核心修復：使用 vertical_alignment="center" 確保對齊
+    # 戰略優化按鈕 (對齊調整)
     c_ai, c_tip = st.columns([1, 2.5], vertical_alignment="center") 
     with c_ai:
         st.markdown('<div class="ai-btn-small">', unsafe_allow_html=True)
-        if st.button(f"🪄 AI 優化檢核", key=f"btn_{fid}"):
-            if fid == "step6_metrics":
-                st.session_state[fid] = f"【AI 成效診斷】：需包含數據漏斗(進店>參與>成交)、LINE增粉與質化問卷指標。\n---\n{st.session_state[fid]}"
-            else:
-                st.session_state[fid] = f"【AI 優化建議】針對{title}：\n{st.session_state[fid]}"
+        if st.button(f"🔥 戰略優化", key=f"btn_{fid}"):
+            # 此處未來串接上述雙重引擎 Prompt
+            st.session_state[fid] = f"【🔥 戰略摧毀與重建】\n1. 侵略性挑戰：你目前的目標太保守了...\n2. 創意新玩法：考慮結合數位刮刮樂與門市實體任務...\n---\n{st.session_state[fid]}"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-    
     with c_tip:
-        with st.expander("💡 查看/編輯實戰建議", expanded=False):
-            if edit_mode:
-                st.session_state.tips_state[fid] = st.text_area("編輯建議", value=st.session_state.tips_state.get(fid, ""), key=f"tip_edit_{fid}")
-            else:
-                st.caption(st.session_state.tips_state.get(fid, "暫無建議內容"))
-    st.write("")
+        with st.expander("💡 顧問實戰建議", expanded=False):
+            st.caption("點擊戰略優化可獲得針對馬尼資源的進階玩法。")
 
-# --- 5. Word 產出 ---
+# --- 5. 文檔導出 ---
 def generate_word():
     doc = Document()
-    doc.add_heading('馬尼通訊 營銷執行提案書 v14.4.3', 0)
-    doc.add_heading(st.session_state.p_name, level=1)
+    doc.add_heading('馬尼通訊 戰略執行提案書 v14.6.0', 0)
     for fid, title, _ in MODULES:
         doc.add_heading(title, level=2)
-        doc.add_paragraph(st.session_state[fid] if st.session_state[fid] else "（未填寫）")
+        doc.add_paragraph(st.session_state[fid] if st.session_state[fid] else "待填寫")
     word_io = BytesIO(); doc.save(word_io); return word_io.getvalue()
 
 st.divider()
-if st.session_state.p_name:
-    if st.button("✅ 完成企劃並產生文檔"):
-        doc_data = generate_word()
-        st.download_button(label="📥 下載企劃書 (docx)", data=doc_data, file_name=f"MoneyMKT_{st.session_state.p_name}.docx")
+if st.session_state.p_name and st.button("✅ 生成戰略文檔"):
+    st.download_button(label="📥 下載 docx", data=generate_word(), file_name=f"Strategy_{st.session_state.p_name}.docx")
