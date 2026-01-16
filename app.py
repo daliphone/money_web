@@ -6,7 +6,7 @@ from io import BytesIO
 import os
 
 # --- 1. 頁面配置 ---
-st.set_page_config(page_title="馬尼通訊 戰略發想系統", page_icon="🐎", layout="centered")
+st.set_page_config(page_title="馬尼通訊 戰略發想系統 v14.6.1", page_icon="🐎", layout="centered")
 
 st.markdown("""
     <style>
@@ -89,7 +89,7 @@ with st.sidebar:
         edit_mode = st.toggle("🔓 開啟邏輯編輯模式", value=False)
 
 # --- 4. 主要編輯區 ---
-st.title("📱 馬尼通訊：雙重戰略發想系統 v14.6.1")
+st.title("📱 馬尼通訊：雙重戰略發想系統")
 
 b1, b2, b3 = st.columns([2, 1, 1])
 with b1: st.text_input("活動名稱", key="p_name", placeholder="例如：2026馬年慶百倍奉還")
@@ -140,4 +140,5 @@ if st.session_state.p_name:
     if st.button("✅ 完成企劃並產生文檔"):
         doc_data = generate_word()
         st.download_button(label="📥 下載標準企劃書 (docx)", data=doc_data, file_name=f"MoneyMKT_{st.session_state.p_name}.docx")
+
 
