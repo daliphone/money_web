@@ -6,7 +6,7 @@ from io import BytesIO
 import os
 
 # --- 1. 頁面配置與 UI ---
-st.set_page_config(page_title="馬尼通訊 營銷發想系統 v14.4.2", page_icon="🐎", layout="centered")
+st.set_page_config(page_title="馬尼通訊 營銷發想系統 v14.4.3", page_icon="🐎", layout="centered")
 
 st.markdown("""
     <style>
@@ -23,14 +23,10 @@ st.markdown("""
         background-color: #ef8200; margin-right: 12px; border-radius: 2px;
     }
     
-    /* 強制按鈕與摺疊區塊垂直居中對齊 */
-    .stColumn { display: flex; align-items: center; }
-    
     /* AI 按鈕精緻化 */
     .stButton>button { 
         width: 100% !important; 
         border-radius: 8px !important;
-        height: 45px !important; 
         font-weight: bold !important;
     }
     .ai-btn-small>div>button { 
@@ -38,8 +34,8 @@ st.markdown("""
         border: 1px solid #DDD6FE !important; font-size: 13px !important;
     }
     
-    /* 摺疊區塊樣式對齊 */
-    .stExpander { border: 1px solid #E2E8F0 !important; border-radius: 8px !important; }
+    /* 摺疊區塊樣式微調 */
+    .stExpander { border: 1px solid #E2E8F0 !important; border-radius: 8px !important; background-color: white !important; }
     
     textarea::placeholder { color: #94A3B8 !important; font-style: italic; }
     </style>
@@ -57,7 +53,6 @@ MODULES = [
 
 FIELDS = [m[0] for m in MODULES] + ["p_name", "p_proposer", "p_date"]
 
-# 預設建議
 DEFAULT_TIPS = {
     "step1_goal": "核心邏輯：若是為了去化，KPI 應設定為『庫存周轉率』而非單純業績。",
     "step2_bait": "實戰建議：利用『紅包感』降低支付痛苦，提升參與率。",
@@ -65,15 +60,20 @@ DEFAULT_TIPS = {
     "step6_metrics": "成效檢核：務必包含『數據資產累積』，例如蒐集到的問卷數量。"
 }
 
-if 'p_date' not in st.session_state: st.session_state.p_date = datetime.now()
-if 'logic_state' not in st.session_state: st.session_state.logic_state = {m[0]: m[ guide] for m, _, guide in zip(MODULES, [None]*6, [m[2] for m in MODULES])}
-if 'tips_state' not in st.session_state: st.session_state.tips_state = DEFAULT_TIPS.copy()
-if 'templates_store' not in st.session_state: st.session_state.templates_store = {"請選擇範本": {f: "" for f in FIELDS}}
+# 修復初始化 logic_state 錯誤
+if 'logic_state' not in st.session_state: 
+    st.session_state.logic_state = {fid: guide for fid, _, guide in MODULES}
+if 'tips_state' not in st.session_state: 
+    st.session_state.tips_state = DEFAULT_TIPS.copy()
+if 'templates_store' not in st.session_state: 
+    st.session_state.templates_store = {"請選擇範本": {f: "" for f in FIELDS}}
 
 for f in FIELDS:
-    if f not in st.session_state and f != 'p_date': st.session_state[f] = ""
+    if f not in st.session_state:
+        if f == 'p_date': st.session_state[f] = datetime.now()
+        else: st.session_state[f] = ""
 
-# --- 3. 側邊欄 (遵循 v14.3.9 佈局) ---
+# --- 3. 側邊欄 ---
 with st.sidebar:
     st.header("📋 企劃管理")
     selected_tpl = st.selectbox("選擇既有範本", options=list(st.session_state.templates_store.keys()))
@@ -94,21 +94,19 @@ with st.sidebar:
 
     st.markdown("<br>"*15, unsafe_allow_html=True)
     with st.expander("ℹ️ 系統版本資訊", expanded=False):
-        st.caption("v14.4.2: 修復 Widget 衝突與按鈕對齊")
+        st.caption("v14.4.3: 修復語法錯誤與對齊優化")
         edit_mode = st.toggle("🔓 開啟引導詞編輯模式", value=False)
         st.write("---")
         st.caption("v14.4.1: 六步發想與 AI 成效檢核")
 
 # --- 4. 主要編輯區 ---
-st.title("📱 馬尼通訊 營銷發想系統 v14.4.2")
+st.title("📱 馬尼通訊 營銷發想系統 v14.4.3")
 
 st.markdown('<p class="section-header">基本提案資訊</p>', unsafe_allow_html=True)
 b1, b2, b3 = st.columns([2, 1, 1])
 with b1: st.text_input("活動名稱", key="p_name", placeholder="例如：2026馬年慶百倍奉還")
 with b2: st.text_input("提案人", key="p_proposer")
-with b3: 
-    # 修復 Widget 衝突點
-    st.date_input("提案日期", key="p_date")
+with b3: st.date_input("提案日期", key="p_date")
 
 st.divider()
 
@@ -121,20 +119,19 @@ for fid, title, guide in MODULES:
     
     st.text_area("", key=fid, height=160, placeholder=st.session_state.logic_state[fid], label_visibility="collapsed")
     
-    # 使用 columns 並設定垂直對齊
-    c_ai, c_tip = st.columns([1, 2.5]) 
+    # 核心修復：使用 vertical_alignment="center" 確保對齊
+    c_ai, c_tip = st.columns([1, 2.5], vertical_alignment="center") 
     with c_ai:
-        st.markdown('<div class="ai-btn-small" style="margin-top: 5px;">', unsafe_allow_html=True)
+        st.markdown('<div class="ai-btn-small">', unsafe_allow_html=True)
         if st.button(f"🪄 AI 優化檢核", key=f"btn_{fid}"):
             if fid == "step6_metrics":
-                st.session_state[fid] = f"【AI 成效診斷】：需包含進店量、轉化率與 LINE 增粉指標。\n---\n{st.session_state[fid]}"
+                st.session_state[fid] = f"【AI 成效診斷】：需包含數據漏斗(進店>參與>成交)、LINE增粉與質化問卷指標。\n---\n{st.session_state[fid]}"
             else:
                 st.session_state[fid] = f"【AI 優化建議】針對{title}：\n{st.session_state[fid]}"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     
     with c_tip:
-        # Expander 預設會有一些 margin，我們透過容器對齊
         with st.expander("💡 查看/編輯實戰建議", expanded=False):
             if edit_mode:
                 st.session_state.tips_state[fid] = st.text_area("編輯建議", value=st.session_state.tips_state.get(fid, ""), key=f"tip_edit_{fid}")
@@ -145,7 +142,7 @@ for fid, title, guide in MODULES:
 # --- 5. Word 產出 ---
 def generate_word():
     doc = Document()
-    doc.add_heading('馬尼通訊 營銷執行提案書 v14.4.2', 0)
+    doc.add_heading('馬尼通訊 營銷執行提案書 v14.4.3', 0)
     doc.add_heading(st.session_state.p_name, level=1)
     for fid, title, _ in MODULES:
         doc.add_heading(title, level=2)
